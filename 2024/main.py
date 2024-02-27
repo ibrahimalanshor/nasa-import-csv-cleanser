@@ -1,10 +1,11 @@
 import os
+import math
 import pandas as pd
 from pymongo import MongoClient, UpdateOne
 from pymongo.server_api import ServerApi
 import progressbar
 
-mongo_uri = ""
+mongo_uri = "mongodb+srv://ibrahimalanshor:65cZx8wS7s0kvjrt@cluster0.bw1af.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
 db = mongo_client.nasa_import
 
@@ -27,7 +28,7 @@ with progressbar.ProgressBar(max_value=filesize) as bar:
                     'area': row['AREA'],
                     'order': row['URUT'],
                     'is_active': 1 if row['PASIF'] == 'x' else 0,
-                    'email': row['EMAIL']
+                    'email': row['EMAIL'] if type(row['EMAIL']) is str else f'{row["KDST"].lower()}@naturalnusantara.co.id'
                 }},
                 upsert=True
             )
@@ -37,4 +38,3 @@ with progressbar.ProgressBar(max_value=filesize) as bar:
         db.stockists.bulk_write(payload)
 
         bar.update(1000)
-print('Exporting stockist penjualan')
