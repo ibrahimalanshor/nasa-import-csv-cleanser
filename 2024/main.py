@@ -1,12 +1,11 @@
 import os
-import math
 import pandas as pd
 from pymongo import MongoClient, UpdateOne
 from pymongo.server_api import ServerApi
 import progressbar
 
-mongo_uri = "mongodb+srv://ibrahimalanshor:65cZx8wS7s0kvjrt@cluster0.bw1af.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-mongo_client = MongoClient(mongo_uri, server_api=ServerApi('1'))
+mongo_uri = 'mongodb://127.0.0.1:27017'
+mongo_client = MongoClient('localhost', server_api=ServerApi('1'))
 db = mongo_client.nasa_import
 
 def import_stockist_penjualan():
@@ -119,11 +118,13 @@ def import_stockist_bonus():
 
             bar.update(1000)
 
+def export_stockists():
+    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number,mobile_number,city,period,pin,upline_code,upline_name "{mongo_uri}"')
+
 def parse_email(email, code):
     return email if email else f'{code.lower()}@naturalnusantara.co.id'
 
 import_stockist_penjualan()
 import_stockist_keuangan()
 import_stockist_bonus()
-
-# mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number,mobile_number,city,period,pin,upline_code,upline_name "mongodb+srv://ibrahimalanshor:65cZx8wS7s0kvjrt@cluster0.bw1af.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+export_stockists()
