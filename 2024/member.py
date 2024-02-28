@@ -103,7 +103,7 @@ def import_member_bonus():
         print(f'insert {inserted}/{filesize}')
 
 def export_member():
-    os.system(f'mongoexport --collection=members --db=nasa_import --type=csv --out=2024/result/members.csv --fields=code,temp_code,name,ktp,sex,birthdate,marital_status,address,address2,kta,postal_code,phone,cellphone,spouse_name,spouse_birthdate,devisor_name,devisor_birthdate,bonus_office,bank_name,bank_branch_name,upline_code,upline_name,register_code,register_name,period,npwp_number,dependents_number,bank_account_number,email "{mongo_uri}"')
+    os.system(f'mongoexport --collection=members --db=nasa_import --type=csv --out=2024/result/members.csv --fields=code,temp_code,name,ktp,sex,birthdate,marital_status,address,address2,kta,postal_code,phone,cellphone,spouse_name,spouse_birthdate,devisor_name,devisor_birthdate,bonus_office,bank_name,bank_branch_name,upline_code,upline_name,register_code,register_name,period,npwp_number,dependents_number,bank_account_number,email,pin "{mongo_uri}"')
 
 def parse_email(email, code):
     return email if email else f'{code.lower()}@naturalnusantara.co.id'
