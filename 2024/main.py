@@ -11,9 +11,8 @@ db = mongo_client.nasa_import
 def import_stockist_penjualan():
     print('Importing raw stockist penjualan')
 
-    filepath = os.path.join(os.path.dirname(__file__), './files/stockist-penjualan.csv')
-    chunks = pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False)
-    filesize = len(pd.read_csv(filepath, encoding='latin1').index)
+    chunks = get_csv_chunk('stockist-penjualan.csv')
+    filesize = get_csv_size('stockist-penjualan.csv')
 
     with progressbar.ProgressBar(max_value=filesize) as bar:
         for df in chunks:
@@ -28,8 +27,11 @@ def import_stockist_penjualan():
                         'phone': row['TLPST'],
                         'area': row['AREA'],
                         'order': row['URUT'],
-                        'is_active': 1 if row['PASIF'] == 'x' else 0,
-                        'email': parse_email(row['EMAIL'], row['KDST'])
+                        'pulau': row['PULAU'],
+                        'kta': row['KTAST'],
+                        'is_active': 1 if row['PASIF'] != 'x' else 0,
+                        'email': parse_email(row['EMAIL'], row['KDST']),
+                        'stockist_type': parse_stockist_type(row['KDST'])
                     }},
                     upsert=True
                 )
@@ -43,9 +45,8 @@ def import_stockist_penjualan():
 def import_stockist_keuangan():
     print('Importing raw stockist keuangan')
 
-    filepath = os.path.join(os.path.dirname(__file__), './files/stockist-keuangan.csv')
-    chunks = pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False)
-    filesize = len(pd.read_csv(filepath, encoding='latin1').index)
+    chunks = get_csv_chunk('stockist-keuangan.csv')
+    filesize = get_csv_size('stockist-keuangan.csv')
 
     with progressbar.ProgressBar(max_value=filesize) as bar:
         for df in chunks:
@@ -63,6 +64,7 @@ def import_stockist_keuangan():
                             'code': row['KODEST'],
                             'name': row['NMAST'],
                             'order': row['URUT'],
+                            'stockist_type': parse_stockist_type(row['KODEST'])
                         }
                     },
                     upsert=True
@@ -77,9 +79,8 @@ def import_stockist_keuangan():
 def import_stockist_bonus():
     print('Importing raw stockist bonus')
 
-    filepath = os.path.join(os.path.dirname(__file__), './files/stockist-bonus.csv')
-    chunks = pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False)
-    filesize = len(pd.read_csv(filepath, encoding='latin1').index)
+    chunks = get_csv_chunk('stockist-bonus.csv')
+    filesize = get_csv_size('stockist-bonus.csv')
 
     with progressbar.ProgressBar(max_value=filesize) as bar:
         for df in chunks:
@@ -89,8 +90,7 @@ def import_stockist_bonus():
                     {
                         '$set': {
                             'member_code': row['KDEDST'],
-                            'city': row['KTAST'],
-                            'mobile_number': row['HP'],
+                            'cellphone': row['HP'],
                             'period': row['TGLMASUK'],
                             'pin': row['PIN'],
                             'email': parse_email(row['EMAIL'], row['KODEST']),
@@ -101,12 +101,14 @@ def import_stockist_bonus():
                             'code': row['KODEST'],
                             'name': row['NMAST'],
                             'phone': row['TLPST'],
+                            'kta': row['KTAST'],
                             'area': row['KAREA'],
                             'address': row['ALMST'],
                             'bank_account_number': row['NMRREK'],
                             'bank_name': row['NMABANK'],
                             'bank_branch_name': row['CBNBANK'],
                             'order': row['URUT'],
+                            'stockist_type': parse_stockist_type(row['KODEST'])
                         }
                     },
                     upsert=True
@@ -119,10 +121,32 @@ def import_stockist_bonus():
             bar.update(1000)
 
 def export_stockists():
-    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number,mobile_number,city,period,pin,upline_code,upline_name "{mongo_uri}"')
+    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=stockist_type,code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number,cellphone,kta,pulau,period,pin,upline_code,upline_name "{mongo_uri}"')
 
 def parse_email(email, code):
     return email if email else f'{code.lower()}@naturalnusantara.co.id'
+
+def parse_stockist_type(code):
+    if code.startswith('SCN'):
+        return 'SCN'
+    elif code.startswith('KYN'):
+        return 'KYN'
+    elif code.startswith('PRSH'):
+        return 'PRSH'
+    return 'STOCKIST'
+
+def get_csv_chunk(filename):
+    filepath = get_csv_path(filename)
+
+    return pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False)
+
+def get_csv_size(filename):
+    filepath = get_csv_path(filename)
+
+    return len(pd.read_csv(filepath, encoding='latin1').index)
+
+def get_csv_path(filename):
+    return os.path.join(os.path.dirname(__file__), f'./files/{filename}')
 
 import_stockist_penjualan()
 import_stockist_keuangan()
