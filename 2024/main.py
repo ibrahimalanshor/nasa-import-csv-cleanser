@@ -30,7 +30,7 @@ def import_stockist_penjualan():
                         'area': row['AREA'],
                         'order': row['URUT'],
                         'is_active': 1 if row['PASIF'] == 'x' else 0,
-                        'email': row['EMAIL'] if row['EMAIL'] else f'{row["KDST"].lower()}@naturalnusantara.co.id'
+                        'email': parse_email(row['EMAIL'], row['KDST'])
                     }},
                     upsert=True
                 )
@@ -53,15 +53,19 @@ def import_stockist_keuangan():
             payload = [
                 UpdateOne(
                     {'code': row['KODEST']},
-                    {'$set': {
-                        'code': row['KODEST'],
-                        'name': row['NMAST'],
-                        'bank_name': row['KODEBANK'],
-                        'bank_branch_name': row['CABANG'],
-                        'bank_account_name': row['NMABANK'],
-                        'bank_account_number': int(row['NOREK']) if type(row['NOREK']) is int else row['NOREK'],
-                        'order': row['URUT'],
-                    }},
+                    {
+                        '$set': {
+                            'bank_name': row['KODEBANK'],
+                            'bank_branch_name': row['CABANG'],
+                            'bank_account_name': row['NMABANK'],
+                            'bank_account_number': int(row['NOREK']) if type(row['NOREK']) is int else row['NOREK'],
+                        },
+                        '$setOnInsert': {
+                            'code': row['KODEST'],
+                            'name': row['NMAST'],
+                            'order': row['URUT'],
+                        }
+                    },
                     upsert=True
                 )
                 for _, row in df.iterrows()
@@ -83,25 +87,29 @@ def import_stockist_bonus():
             payload = [
                 UpdateOne(
                     {'code': row['KODEST']},
-                    {'$set': {
-                        'code': row['KODEST'],
-                        'member_code': row['KDEDST'],
-                        'name': row['NMAST'],
-                        'city': row['KTAST'],
-                        'phone': row['TLPST'],
-                        'mobile_number': row['HP'],
-                        'period': row['TGLMASUK'],
-                        'pin': row['PIN'],
-                        'email': row['EMAIL'],
-                        'upline_code': row['KODEUPL'],
-                        'upline_name': row['NMAUPL'],
-                        'area': row['KAREA'],
-                        'address': row['ALMST'],
-                        'bank_account_number': row['NMRREK'],
-                        'bank_name': row['NMABANK'],
-                        'bank_branch_name': row['CBNBANK'],
-                        'order': row['URUT'],
-                    }},
+                    {
+                        '$set': {
+                            'member_code': row['KDEDST'],
+                            'city': row['KTAST'],
+                            'mobile_number': row['HP'],
+                            'period': row['TGLMASUK'],
+                            'pin': row['PIN'],
+                            'email': parse_email(row['EMAIL'], row['KODEST']),
+                            'upline_code': row['KODEUPL'],
+                            'upline_name': row['NMAUPL'],
+                        },
+                        '$setOnInsert': {
+                            'code': row['KODEST'],
+                            'name': row['NMAST'],
+                            'phone': row['TLPST'],
+                            'area': row['KAREA'],
+                            'address': row['ALMST'],
+                            'bank_account_number': row['NMRREK'],
+                            'bank_name': row['NMABANK'],
+                            'bank_branch_name': row['CBNBANK'],
+                            'order': row['URUT'],
+                        }
+                    },
                     upsert=True
                 )
                 for _, row in df.iterrows()
@@ -111,9 +119,11 @@ def import_stockist_bonus():
 
             bar.update(1000)
 
+def parse_email(email, code):
+    return email if email else f'{code.lower()}@naturalnusantara.co.id'
 
 import_stockist_penjualan()
 import_stockist_keuangan()
 import_stockist_bonus()
 
-# mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number "mongodb+srv://ibrahimalanshor:65cZx8wS7s0kvjrt@cluster0.bw1af.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+# mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number,mobile_number,city,period,pin,upline_code,upline_name "mongodb+srv://ibrahimalanshor:65cZx8wS7s0kvjrt@cluster0.bw1af.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
