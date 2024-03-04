@@ -7,6 +7,9 @@ mongo_uri = 'mongodb://127.0.0.1:27017'
 mongo_client = MongoClient('localhost', server_api=ServerApi('1'))
 db = mongo_client.nasa_import
 
+def truncate_members():
+    db.members.delete_many({})
+
 def import_member_master():
     print('Importing raw member master')
 
@@ -50,7 +53,8 @@ def import_member_master():
                     'npwp_number': row['NPWP'],
                     'dependents_number': row['ANAK'],
                     'bank_account_number': int(row['NRKBANK']) if type(row['NRKBANK']) is int else row['NRKBANK'],
-                    'email': parse_email(row['EMAIL'], row['KDEDST'])
+                    'email': parse_email(row['EMAIL'], row['KDEDST']),
+                    'office_email': f'{row["KDEDST"]}@naturalnusantara.co.id',
                 }},
                 upsert=True
             )
@@ -88,6 +92,7 @@ def import_member_bonus():
                         'upline_name': row['NMAUPL'],
                         'birthdate': row['TGLLHR'],
                         'email': parse_email('', row['KDEDST']),
+                        'office_email': f'{row["KDEDST"]}@naturalnusantara.co.id',
                         'register_code': parse_register_name(row['NMRDST']),
                         'register_name': parse_register_name(row['NMRDST']),
                     }
@@ -132,10 +137,34 @@ def impoer_member_stockist_promote():
         print(f'insert {inserted}/{filesize}')
 
 def export_member():
-    os.system(f'mongoexport --collection=members --db=nasa_import --type=csv --out=2024/result/members.csv --fields=code,temp_code,name,ktp,sex,birthdate,marital_status,address,address2,kta,postal_code,phone,cellphone,spouse_name,spouse_birthdate,devisor_name,devisor_birthdate,bonus_office,bank_name,bank_branch_name,upline_code,upline_name,register_code,register_name,promoted_to_stockist_code,promoted_to_stockist_name,period,npwp_number,dependents_number,bank_account_number,email,pin "{mongo_uri}"')
+    os.system(f'mongoexport --collection=members --db=nasa_import --type=csv --out=2024/result/members.csv --fields=code,temp_code,name,ktp,sex,birthdate,marital_status,address,address2,kta,postal_code,phone,cellphone,spouse_name,spouse_birthdate,devisor_name,devisor_birthdate,bonus_office,bank_name,bank_branch_name,upline_code,upline_name,register_code,register_name,promoted_to_stockist_code,promoted_to_stockist_name,period,npwp_number,dependents_number,bank_account_number,email,office_email,pin "{mongo_uri}"')
+
+def replace_duplicate_values():
+    pipeline = [
+        {"$group": {"_id": { "$toLower": "$email" }, "duplicates": {"$push": "$_id"}, "count": {"$sum": 1}}},
+        {"$match": {"count": {"$gt": 1}}}
+    ]
+    duplicate_emails = list(db.members.aggregate(pipeline))
+
+    bulk_operations = []
+    for duplicate in duplicate_emails:
+        duplicates_to_null = duplicate["duplicates"][1:]
+        bulk_operations.append(
+            UpdateOne(
+                {"_id": {"$in": duplicates_to_null}},
+                {"$set": {"email": None}}
+            )
+        )
+
+    if bulk_operations:
+        result = db.members.bulk_write(bulk_operations)
+        print(f"Duplicate Detected: {result.modified_count}")
 
 def parse_email(email, code):
-    return email if email else f'{code.lower()}@naturalnusantara.co.id'
+    if (type(email) != str or len(email) < 5):
+        return f'{code.lower()}@naturalnusantara.co.id'
+    else:
+        return email
 
 def parse_register_name(temp_code):
     return temp_code.split('-')[0]
@@ -160,7 +189,9 @@ def get_csv_size(filename, cols):
 def get_csv_path(filename):
     return os.path.join(os.path.dirname(__file__), f'./files/{filename}')
 
+truncate_members()
 import_member_master()
 import_member_bonus()
 impoer_member_stockist_promote()
+replace_duplicate_values()
 export_member()

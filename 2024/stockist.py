@@ -8,6 +8,9 @@ mongo_uri = 'mongodb://127.0.0.1:27017'
 mongo_client = MongoClient('localhost', server_api=ServerApi('1'))
 db = mongo_client.nasa_import
 
+def truncate_stockists():
+    db.stockists.delete_many({})
+
 def import_stockist_penjualan():
     print('Importing raw stockist penjualan')
 
@@ -31,6 +34,7 @@ def import_stockist_penjualan():
                         'kta': row['KTAST'],
                         'is_active': 1 if row['PASIF'] != 'x' else 0,
                         'email': parse_email(row['EMAIL'], row['KDST']),
+                        'office_email': f'{row["KDST"]}@naturalnusantara.co.id',
                         'stockist_type': parse_stockist_type(row['KDST'])
                     }},
                     upsert=True
@@ -64,7 +68,8 @@ def import_stockist_keuangan():
                             'code': row['KODEST'],
                             'name': row['NMAST'],
                             'order': row['URUT'],
-                            'stockist_type': parse_stockist_type(row['KODEST'])
+                            'stockist_type': parse_stockist_type(row['KODEST']),
+                            'email': f'{row["KODEST"]}@naturalnusantara.co.id',
                         }
                     },
                     upsert=True
@@ -93,7 +98,8 @@ def import_stockist_bonus():
                             'cellphone': row['HP'],
                             'period': row['TGLMASUK'],
                             'pin': row['PIN'],
-                            'email': parse_email(row['EMAIL'], row['KODEST']),
+                            'email': parse_email(row['EMAIL'], row['KODEST']),                        
+                            'office_email': f'{row["KODEST"]}@naturalnusantara.co.id',
                             'upline_code': row['KODEUPL'],
                             'upline_name': row['NMAUPL'],
                         },
@@ -108,7 +114,6 @@ def import_stockist_bonus():
                             'bank_name': row['NMABANK'],
                             'bank_branch_name': row['CBNBANK'],
                             'order': row['URUT'],
-                            'stockist_type': parse_stockist_type(row['KODEST'])
                         }
                     },
                     upsert=True
@@ -121,10 +126,34 @@ def import_stockist_bonus():
             bar.update(1000)
 
 def export_stockists():
-    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=stockist_type,member_code,code,name,address,address2,phone,area,order,is_active,email,bank_name,bank_branch_name,bank_account_name,bank_account_number,cellphone,kta,pulau,period,pin,upline_code,upline_name "{mongo_uri}"')
+    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=stockist_type,member_code,code,name,address,address2,phone,area,order,is_active,email,office_email,bank_name,bank_branch_name,bank_account_name,bank_account_number,cellphone,kta,pulau,period,pin,upline_code,upline_name "{mongo_uri}"')
+
+def replace_duplicate_values():
+    pipeline = [
+        {"$group": {"_id": { "$toLower": "$email" }, "duplicates": {"$push": "$_id"}, "count": {"$sum": 1}}},
+        {"$match": {"count": {"$gt": 1}}}
+    ]
+    duplicate_emails = list(db.stockists.aggregate(pipeline))
+
+    bulk_operations = []
+    for duplicate in duplicate_emails:
+        duplicates_to_null = duplicate["duplicates"][1:]
+        bulk_operations.append(
+            UpdateOne(
+                {"_id": {"$in": duplicates_to_null}},
+                {"$set": {"email": None}}
+            )
+        )
+
+    if bulk_operations:
+        result = db.stockists.bulk_write(bulk_operations)
+        print(f"Duplicate Detected: {result.modified_count}")
 
 def parse_email(email, code):
-    return email if email else f'{code.lower()}@naturalnusantara.co.id'
+    if (type(email) != str or len(email) < 5):
+        return f'{code.lower()}@naturalnusantara.co.id'
+    else:
+        return email
 
 def parse_stockist_type(code):
     if code.startswith('SCN'):
@@ -148,7 +177,9 @@ def get_csv_size(filename):
 def get_csv_path(filename):
     return os.path.join(os.path.dirname(__file__), f'./files/{filename}')
 
+truncate_stockists()
 import_stockist_penjualan()
 import_stockist_keuangan()
 import_stockist_bonus()
+replace_duplicate_values()
 export_stockists()
