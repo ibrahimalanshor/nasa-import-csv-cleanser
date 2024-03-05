@@ -29,7 +29,9 @@ def import_sc():
             stockist_hash = {item['code']: {**item} for item in stockists if 'code' in item}
             member_hash = {item['code']: {**item} for item in members if 'code' in item}
 
-            payload = []
+            payload_sc = []
+            payload_stockist = []
+            payload_member = []
             for _, row in df.iterrows():
                 def get_stockist(key):
                     if (not (row['KODEST'] in stockist_hash)):
@@ -54,7 +56,7 @@ def import_sc():
                     
                     return member_hash[member_code][key]
                 
-                payload.append(UpdateOne(
+                payload_sc.append(UpdateOne(
                     {'code': row['KODESC']},
                     {'$set': {
                         'code': row['KODESC'],
@@ -62,7 +64,7 @@ def import_sc():
                         'stockist_code': get_stockist('code'),
                         'stockist_name': get_stockist('name'),
                         'pin': get_stockist('pin'),
-                        'member_code': get_member('name'),
+                        'member_code': get_member('code'),
                         'member_name': get_member('name'),
                         'name': row['NMASC'],
                         'area': row['WILSC']
@@ -70,7 +72,26 @@ def import_sc():
                     upsert=True
                 ))
 
-            db.stockist_centers.bulk_write(payload)
+                payload_stockist.append(UpdateOne(
+                    {'code': row['KODEST']},
+                    {'$set': {
+                        'sc_code': row['KODESC'],
+                        'sc_name': row['NMASC']
+                    }}
+                ))
+
+                if (get_member('code')):
+                    payload_member.append(UpdateOne(
+                        {'code': get_member('code')},
+                        {'$set': {
+                            'sc_code': row['KODESC'],
+                            'sc_name': row['NMASC']
+                        }}
+                    ))
+
+            db.stockist_centers.bulk_write(payload_sc)
+            db.stockists.bulk_write(payload_stockist)
+            db.members.bulk_write(payload_member)
 
             bar.update(chunk_size)
 
