@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from pymongo import MongoClient, UpdateOne
 from pymongo.server_api import ServerApi
+import csv
 import progressbar
 
 mongo_uri = 'mongodb://127.0.0.1:27017'
@@ -171,6 +172,24 @@ def replace_duplicate_values():
         result = db.stockists.bulk_write(bulk_operations)
         print(f"Duplicate Detected: {result.modified_count}")
 
+def remove_sc():
+    cursor = list(db.stockists.find({"code": {"$regex": "^SC(?!N)"}}, {"_id": 0, "code": 1, "name": 1, "email": 1, "sc_code": 1, "sc_name": 1}))
+
+    csv_file_path = get_csv_path("sc-in-stockists.csv", "result")
+
+    with open(csv_file_path, 'w', newline='') as csv_file:
+        fieldnames = ['code', 'name', 'email', 'sc_code', 'sc_name']
+        csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        
+        csv_writer.writeheader()
+        
+        csv_writer.writerows(cursor)
+
+    sc_to_remove = [row for row in cursor if ('sc_code' in row) and (row['sc_code'] == row['code'])]
+    sc_code_to_remove = [row['code'] for row in sc_to_remove]
+
+    db.stockists.delete_many({ 'code': {'$in': sc_code_to_remove} })
+
 def parse_email(email, code):
     if (type(email) != str or len(email) < 5):
         return f'{code.lower()}@naturalnusantara.co.id'
@@ -196,12 +215,13 @@ def get_csv_size(filename):
 
     return len(pd.read_csv(filepath, encoding='latin1').index)
 
-def get_csv_path(filename):
-    return os.path.join(os.path.dirname(__file__), f'./files/{filename}')
+def get_csv_path(filename, path='files'):
+    return os.path.join(os.path.dirname(__file__), f'./{path}/{filename}')
 
 truncate_stockists()
 import_stockist_penjualan()
 import_stockist_keuangan()
 import_stockist_bonus()
 replace_duplicate_values()
+remove_sc()
 export_stockists()

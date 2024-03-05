@@ -108,7 +108,6 @@ def get_csv_size(filename):
 def get_csv_path(filename):
     return os.path.join(os.path.dirname(__file__), f'./files/{filename}')
 
-
 def export_sc():
     os.system(f'mongoexport --collection=stockist_centers --db=nasa_import --type=csv --out=2024/result/sc.csv --fields=code,email,pin,stockist_code,stockist_name,member_code,member_name,name,area "{mongo_uri}"')
 
