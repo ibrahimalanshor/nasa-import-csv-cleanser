@@ -185,10 +185,9 @@ def remove_sc():
         
         csv_writer.writerows(cursor)
 
-    sc_to_remove = [row for row in cursor if ('sc_code' in row) and (row['sc_code'] == row['code'])]
-    sc_code_to_remove = [row['code'] for row in sc_to_remove]
+    sc_to_remove = [row['code'] for row in cursor]
 
-    db.stockists.delete_many({ 'code': {'$in': sc_code_to_remove} })
+    db.stockists.delete_many({ 'code': {'$in': sc_to_remove} })
 
 def parse_email(email, code):
     if (type(email) != str or len(email) < 5):
