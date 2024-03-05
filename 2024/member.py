@@ -106,38 +106,9 @@ def import_member_bonus():
 
         inserted += 1000
         print(f'insert {inserted}/{filesize}')
-    
-def impoer_member_stockist_promote():
-    print('Importing raw stockist bonus')
-
-    cols = ['KDEDST','NMAST','KODEST']
-
-    chunks = get_csv_chunk('stockist-bonus.csv', cols)
-    filesize = get_csv_size('stockist-bonus.csv', cols)
-
-    inserted = 0
-    for df in chunks:
-        payload = [
-            UpdateOne(
-                {'code': row['KDEDST']},
-                {
-                    '$set': {
-                        'promoted_to_stockist_code': row['KODEST'],
-                        'promoted_to_stockist_name': row['NMAST']
-                    }
-                },
-                upsert=False
-            )
-            for _, row in df.iterrows()
-        ]
-
-        db.members.bulk_write(payload)
-
-        inserted += 1000
-        print(f'insert {inserted}/{filesize}')
 
 def export_member():
-    os.system(f'mongoexport --collection=members --db=nasa_import --type=csv --out=2024/result/members.csv --fields=code,temp_code,name,ktp,sex,birthdate,marital_status,address,address2,kta,postal_code,phone,cellphone,spouse_name,spouse_birthdate,devisor_name,devisor_birthdate,bonus_office,bank_name,bank_branch_name,upline_code,upline_name,register_code,register_name,promoted_to_stockist_code,promoted_to_stockist_name,period,npwp_number,dependents_number,bank_account_number,email,office_email,pin "{mongo_uri}"')
+    os.system(f'mongoexport --collection=members --db=nasa_import --type=csv --out=2024/result/members.csv --fields=code,temp_code,name,ktp,sex,birthdate,marital_status,address,address2,kta,postal_code,phone,cellphone,spouse_name,spouse_birthdate,devisor_name,devisor_birthdate,bonus_office,bank_name,bank_branch_name,upline_code,upline_name,register_code,register_name,period,npwp_number,dependents_number,bank_account_number,email,office_email,pin "{mongo_uri}"')
 
 def replace_duplicate_values():
     pipeline = [
@@ -192,6 +163,5 @@ def get_csv_path(filename):
 truncate_members()
 import_member_master()
 import_member_bonus()
-impoer_member_stockist_promote()
 replace_duplicate_values()
 export_member()

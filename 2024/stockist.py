@@ -89,12 +89,23 @@ def import_stockist_bonus():
 
     with progressbar.ProgressBar(max_value=filesize) as bar:
         for df in chunks:
-            payload = [
-                UpdateOne(
+            members = list(db.members.find({
+                'code': {'$in': df['KDEDST'].tolist()}
+            }))
+            member_hash = {item['code']: {**item} for item in members if 'code' in item}
+
+            payload_stockists = []
+            payload_members = []
+
+            for _, row in df.iterrows():
+                is_has_member = row['KDEDST'] in member_hash
+                
+                payload_stockists.append(UpdateOne(
                     {'code': row['KODEST']},
                     {
                         '$set': {
-                            'member_code': row['KDEDST'],
+                            'member_code': member_hash[row['KDEDST']]['code'] if is_has_member else None,
+                            'member_name': member_hash[row['KDEDST']]['name'] if is_has_member else None,
                             'cellphone': row['HP'],
                             'period': row['TGLMASUK'],
                             'pin': row['PIN'],
@@ -117,16 +128,27 @@ def import_stockist_bonus():
                         }
                     },
                     upsert=True
-                )
-                for _, row in df.iterrows()
-            ]
+                ))
 
-            db.stockists.bulk_write(payload)
+                if (is_has_member):
+                    payload_members.append(UpdateOne(
+                        {'code': member_hash[row['KDEDST']]['code']},
+                        {
+                            '$set': {
+                                'stockist_code': row['KODEST'],
+                                'stockist_name': row['NMAST'],
+                            }
+                        },
+                        upsert=True
+                    ))
+
+            db.stockists.bulk_write(payload_stockists)
+            db.members.bulk_write(payload_members)
 
             bar.update(1000)
 
 def export_stockists():
-    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=stockist_type,member_code,code,name,address,address2,phone,area,order,is_active,email,office_email,bank_name,bank_branch_name,bank_account_name,bank_account_number,cellphone,kta,pulau,period,pin,upline_code,upline_name "{mongo_uri}"')
+    os.system(f'mongoexport --collection=stockists --db=nasa_import --type=csv --out=2024/result/stockists.csv --fields=stockist_type,member_code,member_name,code,name,address,address2,phone,area,order,is_active,email,office_email,bank_name,bank_branch_name,bank_account_name,bank_account_number,cellphone,kta,pulau,period,pin,upline_code,upline_name "{mongo_uri}"')
 
 def replace_duplicate_values():
     pipeline = [

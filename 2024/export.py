@@ -17,4 +17,4 @@ def export_member():
 
 export_sc()
 export_stockist()
-# export_member()
+export_member()
