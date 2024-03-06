@@ -213,6 +213,8 @@ def parse_ktp(ktp):
         return ''
     elif (ktp == '-'):
         return ''
+    elif (len(ktp) != 16):
+        return ''
     return ktp
 
 def get_csv_chunk(filename, cols):
