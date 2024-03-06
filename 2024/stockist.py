@@ -36,7 +36,8 @@ def import_stockist_penjualan():
                         'is_active': 1 if row['PASIF'] != 'x' else 0,
                         'email': parse_email(row['EMAIL'], row['KDST']),
                         'office_email': f'{row["KDST"]}@naturalnusantara.co.id',
-                        'stockist_type': parse_stockist_type(row['KDST'])
+                        'stockist_type': parse_stockist_type(row['KDST']),
+                        'insert_type': 'penjualan'
                     }},
                     upsert=True
                 )
@@ -65,15 +66,16 @@ def import_stockist_keuangan():
                             'bank_account_name': row['NMABANK'],
                             'bank_account_number': int(row['NOREK']) if type(row['NOREK']) is int else row['NOREK'],
                         },
-                        '$setOnInsert': {
-                            'code': row['KODEST'],
-                            'name': row['NMAST'],
-                            'order': row['URUT'],
-                            'stockist_type': parse_stockist_type(row['KODEST']),
-                            'email': f'{row["KODEST"]}@naturalnusantara.co.id',
-                        }
+                        # '$setOnInsert': {
+                        #     'code': row['KODEST'],
+                        #     'name': row['NMAST'],
+                        #     'order': row['URUT'],
+                        #     'stockist_type': parse_stockist_type(row['KODEST']),
+                        #     'email': f'{row["KODEST"]}@naturalnusantara.co.id',
+                        #     'insert_type': 'keuangan'
+                        # }
                     },
-                    upsert=True
+                    upsert=False
                 )
                 for _, row in df.iterrows()
             ]
@@ -114,21 +116,25 @@ def import_stockist_bonus():
                             'office_email': f'{row["KODEST"]}@naturalnusantara.co.id',
                             'upline_code': row['KODEUPL'],
                             'upline_name': row['NMAUPL'],
-                        },
-                        '$setOnInsert': {
-                            'code': row['KODEST'],
-                            'name': row['NMAST'],
-                            'phone': row['TLPST'],
-                            'kta': row['KTAST'],
-                            'area': row['KAREA'],
-                            'address': row['ALMST'],
                             'bank_account_number': row['NMRREK'],
                             'bank_name': row['NMABANK'],
                             'bank_branch_name': row['CBNBANK'],
-                            'order': row['URUT'],
-                        }
+                        },
+                        # '$setOnInsert': {
+                        #     'code': row['KODEST'],
+                        #     'name': row['NMAST'],
+                        #     'phone': row['TLPST'],
+                        #     'kta': row['KTAST'],
+                        #     'area': row['KAREA'],
+                        #     'address': row['ALMST'],
+                        #     'bank_account_number': row['NMRREK'],
+                        #     'bank_name': row['NMABANK'],
+                        #     'bank_branch_name': row['CBNBANK'],
+                        #     'order': row['URUT'],
+                        #     'insert_type': 'bonus'
+                        # }
                     },
-                    upsert=True
+                    upsert=False
                 ))
 
                 if (is_has_member):
@@ -143,8 +149,11 @@ def import_stockist_bonus():
                         upsert=True
                     ))
 
-            db.stockists.bulk_write(payload_stockists)
-            db.members.bulk_write(payload_members)
+            if (payload_stockists):
+                db.stockists.bulk_write(payload_stockists)
+            
+            if (payload_members):
+                db.members.bulk_write(payload_members)
 
             bar.update(1000)
 
@@ -189,6 +198,19 @@ def remove_sc():
 
     db.stockists.delete_many({ 'code': {'$in': sc_to_remove} })
 
+def get_unified_stockist():
+    cursor = list(db.stockists.find({"insert_type": {"$ne": "penjualan"}}, {"_id": 0, "code": 1, "name": 1, "email": 1, "insert_type": 1}))
+
+    csv_file_path = get_csv_path("stockist-not-from-penjualan.csv", "result")
+
+    with open(csv_file_path, 'w', newline='') as csv_file:
+        fieldnames = ['code', 'name', 'email', 'insert_type']
+        csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        
+        csv_writer.writeheader()
+        
+        csv_writer.writerows(cursor)
+
 def parse_email(email, code):
     if (type(email) != str or len(email) < 5):
         return f'{code.lower()}@naturalnusantara.co.id'
@@ -224,3 +246,4 @@ import_stockist_bonus()
 replace_duplicate_values()
 remove_sc()
 export_stockists()
+get_unified_stockist()
