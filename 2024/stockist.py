@@ -162,29 +162,34 @@ def export_stockists():
 
 def replace_duplicate_values():
     pipeline = [
-        {"$group": {"_id": { "$toLower": "$email" }, "duplicates": {"$push": "$_id"}, "count": {"$sum": 1}}},
+        {"$group": {"_id": {"$toLower": "$email"}, "duplicates": {"$push": "$_id"}, "count": {"$sum": 1}}},
         {"$match": {"count": {"$gt": 1}}}
     ]
-    duplicate_emails = list(db.stockists.aggregate(pipeline))
+    duplicate_emails = list(db.members.aggregate(pipeline))
 
     bulk_operations = []
     for duplicate in duplicate_emails:
-        duplicates_to_null = duplicate["duplicates"][1:]
-        bulk_operations.append(
+        duplicates_to_null = duplicate["duplicates"]
+        bulk_operations.extend([
             UpdateOne(
-                {"_id": {"$in": duplicates_to_null}},
+                {"_id": duplicate_id},
                 {"$set": {"email": None}}
-            )
-        )
+            ) for duplicate_id in duplicates_to_null[1:]
+        ])
 
     if bulk_operations:
-        result = db.stockists.bulk_write(bulk_operations)
+        result = db.members.bulk_write(bulk_operations)
         print(f"Duplicate Detected: {result.modified_count}")
 
 def remove_sc():
     cursor = list(db.stockists.find({"code": {"$regex": "^SC(?!N)"}}, {"_id": 0, "code": 1, "name": 1, "email": 1, "sc_code": 1, "sc_name": 1}))
 
     csv_file_path = get_csv_path("sc-in-stockists.csv", "result")
+
+    try:
+        os.remove(csv_file_path)
+    except:
+        pass
 
     with open(csv_file_path, 'w', newline='') as csv_file:
         fieldnames = ['code', 'name', 'email', 'sc_code', 'sc_name']
@@ -202,6 +207,11 @@ def get_unified_stockist():
     cursor = list(db.stockists.find({"insert_type": {"$ne": "penjualan"}}, {"_id": 0, "code": 1, "name": 1, "email": 1, "insert_type": 1}))
 
     csv_file_path = get_csv_path("stockist-not-from-penjualan.csv", "result")
+
+    try:
+        os.remove(csv_file_path)
+    except:
+        pass
 
     with open(csv_file_path, 'w', newline='') as csv_file:
         fieldnames = ['code', 'name', 'email', 'insert_type']
