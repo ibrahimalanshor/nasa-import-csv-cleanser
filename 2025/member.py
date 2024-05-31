@@ -20,6 +20,9 @@ def import_member_master():
     filesize = get_csv_size('member-master.csv', cols)
 
     inserted = 0
+    success = 0
+    upserted = 0
+    modified = 0
 
     for df in chunks:
         payload = [
@@ -62,10 +65,16 @@ def import_member_master():
             for _, row in df.iterrows()
         ]
 
-        db.members.bulk_write(payload)
+        res = db.members.bulk_write(payload)
 
         inserted += 1000
-        print(f'insert {inserted}/{filesize}')
+        success += res.upserted_count + res.modified_count
+        upserted += res.upserted_count
+        modified += res.modified_count
+
+        print(f'insert {inserted}/{filesize}, upserted {res.upserted_count} modified {res.modified_count}')
+
+    print(f'success {success}, upserted {upserted}, modified {modified}')
 
 def import_member_bonus():
     print('Importing raw member bonus')
@@ -130,7 +139,7 @@ def replace_duplicate_email():
 
     if bulk_operations:
         result = db.members.bulk_write(bulk_operations)
-        print(f"Duplicate Detected: {result.modified_count}")
+        print(f"Duplicate email detected: {result.modified_count}")
 
 def replace_duplicate_ktp():
     pipeline = [
@@ -151,7 +160,7 @@ def replace_duplicate_ktp():
 
     if bulk_operations:
         result = db.members.bulk_write(bulk_operations)
-        print(f"Duplicate Detected: {result.modified_count}")
+        print(f"Duplicate ktp etected: {result.modified_count}")
 
 def export_duplicate_email():
     duplicate_emails = db.members.aggregate([
@@ -220,12 +229,12 @@ def parse_ktp(ktp):
 def get_csv_chunk(filename, cols):
     filepath = get_csv_path(filename)
 
-    return pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False, usecols=cols)
+    return pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False, usecols=cols, delimiter=',')
 
 def get_csv_size(filename, cols):
     filepath = get_csv_path(filename)
 
-    return len(pd.read_csv(filepath, encoding='latin1', usecols=cols).index)
+    return len(pd.read_csv(filepath, encoding='latin1', usecols=cols, delimiter=',').index)
 
 def get_csv_path(filename, dir='files'):
     return os.path.join(os.path.dirname(__file__), f'./{dir}/{filename}')
