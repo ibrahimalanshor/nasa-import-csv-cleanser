@@ -225,7 +225,7 @@ def parse_email(email, code):
     if (type(email) != str or len(email) < 5):
         return f'{code.lower()}@naturalnusantara.co.id'
     else:
-        return email
+        return email.lower()
 
 def parse_stockist_type(code):
     if code.startswith('SCN'):
