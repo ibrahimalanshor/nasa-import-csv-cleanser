@@ -92,7 +92,7 @@ def import_member_bonus():
                 {'code': row['KDEDST']},
                 {
                     '$set': {
-                        'pin': row['PIN']
+                        'pin': str(row['PIN'])
                     },
                     '$setOnInsert': {
                         'code': row['KDEDST'],
