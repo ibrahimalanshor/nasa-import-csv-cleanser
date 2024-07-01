@@ -57,7 +57,7 @@ def import_member_master():
                     'npwp_number': row['NPWP'],
                     'dependents_number': row['ANAK'],
                     'bank_account_number': int(row['NRKBANK']) if type(row['NRKBANK']) is int else row['NRKBANK'],
-                    'email': parse_email(row['EMAIL'], row['KDEDST']),
+                    'email': generate_office_email(row['KDEDST']),
                     'office_email': f'{row["KDEDST"]}@naturalnusantara.co.id',
                 }},
                 upsert=True
@@ -101,7 +101,7 @@ def import_member_bonus():
                         'upline_code': row['NMRUPL'],
                         'upline_name': row['NMAUPL'],
                         'birthdate': row['TGLLHR'],
-                        'email': parse_email('', row['KDEDST']),
+                        'email': generate_office_email(row['KDEDST']),
                         'office_email': f'{row["KDEDST"]}@naturalnusantara.co.id',
                         'register_code': parse_register_name(row['NMRDST']),
                         'register_name': parse_register_name(row['NMRDST']),
@@ -208,6 +208,9 @@ def export_duplicate_ktp():
         
         csv_writer.writerows(duplicate_ktps)
 
+def generate_office_email(code):
+    return f'{code.lower()}@naturalnusantara.co.id'
+
 def parse_email(email, code):
     if (type(email) != str or len(email) < 5):
         return f'{code.lower()}@naturalnusantara.co.id'
@@ -229,7 +232,7 @@ def parse_ktp(ktp):
 def get_csv_chunk(filename, cols):
     filepath = get_csv_path(filename)
 
-    return pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False, usecols=cols, delimiter=',')
+    return pd.read_csv(filepath, chunksize=1000, encoding='latin1', keep_default_na=False, usecols=cols, delimiter=',', dtype=str)
 
 def get_csv_size(filename, cols):
     filepath = get_csv_path(filename)

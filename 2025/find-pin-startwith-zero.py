@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import csv
 
 def find_pin_start_with_zero():
     print('Check member bonus')
